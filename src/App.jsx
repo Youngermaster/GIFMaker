@@ -1,38 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import logo from './logo.svg';
 import './App.css';
 
+import { createFFmpeg, fetchFile } from "@ffmpeg/ffmpeg";
+const ffmpeg = createFFmpeg({ log: true })
+
 function App() {
-  // Create the count state.
-  const [count, setCount] = useState(0);
-  // Create the counter (+1 every second).
+  const [ready, setReady] = useState(false);
+  const [video, setVideo] = useState();
+  const [gif, setGif] = useState();
+
+  const load = async () => {
+    await ffmpeg.load();
+    setReady(true);
+  }
+
   useEffect(() => {
-    const timer = setTimeout(() => setCount(count + 1), 1000);
-    return () => clearTimeout(timer);
-  }, [count, setCount]);
+    load();
+  }, [])
+
+
+  // This method converts the MP4 to GIF
+  const convertToGif = async () => {
+    // write the file to memory
+    ffmpeg.FS('writeFile', 'video.mp4', await fetchFile(video));
+
+    // Run the FFMpeg command
+    await ffmpeg.run('-i', 'video.mp4', '-t', '4.0', '-ss', '0.5', '-f', 'gif', 'out.gif');
+
+    // Read the result
+    const data = ffmpeg.FS('readFile', 'out.gif');
+
+    // Create a URL
+    const url = URL.createObjectURL(new Blob([data.buffer]), { type: 'image/gif' });
+    setGif(url);
+  }
+
   // Return the App component.
-  return (
+  return ready ? (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.jsx</code> and save to reload.
-        </p>
-        <p>
-          Page has been open for <code>{count}</code> seconds.
-        </p>
-        <p>
-          <a
-            className="App-link"
-            href="https://reactjs.org"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Learn React
-          </a>
-        </p>
-      </header>
+
+      <h1>MP4 to GIF Converter</h1>
+
+      <h3>MP4 video</h3>
+      {
+        video &&
+
+        <video
+          controls
+          width="350"
+          src={URL.createObjectURL(video)}
+        ></video>
+      }
+
+      <input type="file" onChange={(e) => setVideo(e.target.files?.item(0))} />
+
+      <h3>GIF</h3>
+
+      <button onClick={convertToGif}>Convert</button>
+
+      {gif && <img src={gif} width="350" />}
+
     </div>
+  ) : (
+    <p>Loading...</p>
   );
 }
 
